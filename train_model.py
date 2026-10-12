@@ -7,63 +7,36 @@ import os
 import pickle
 
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from loan_model import ACCURACY_PATH, FEATURES, MODEL_PATH, BASE_DIR, build_pipeline
+
 DATA_PATH = os.path.join(BASE_DIR, "data", "loan_data.csv")
-MODEL_PATH = os.path.join(BASE_DIR, "model", "loan_model.sav")
 
-NUMERIC = [
-    "ApplicantIncome", "CoapplicantIncome", "LoanAmount",
-    "Loan_Amount_Term", "Credit_History",
-]
-CATEGORICAL = [
-    "Gender", "Married", "Dependents", "Education",
-    "Self_Employed", "Property_Area",
-]
+
+def train(df, test_size=0.2, seed=42):
+    """Train on a DataFrame. Returns (model, X_test, y_test)."""
+    df = df.dropna(subset=["Loan_Status"])
+    X = df[FEATURES]
+    y = df["Loan_Status"].map({"Y": 1, "N": 0})
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, stratify=y, random_state=seed
+    )
+    model = build_pipeline()
+    model.fit(X_train, y_train)
+    return model, X_test, y_test
 
 
 def main():
     if not os.path.exists(DATA_PATH):
         raise FileNotFoundError(
             f"{DATA_PATH} not found. Download the dataset (see README) "
-            "or run generate_sample_data.py to create test data."
+            "and save it as data/loan_data.csv."
         )
 
-    df = pd.read_csv(DATA_PATH)
-    df = df.dropna(subset=["Loan_Status"])
-
-    X = df[NUMERIC + CATEGORICAL]
-    y = df["Loan_Status"].map({"Y": 1, "N": 0})
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
-    )
-
-    # Preprocessing is part of the pipeline, so the app can pass raw values
-    preprocess = ColumnTransformer([
-        ("num", SimpleImputer(strategy="median"), NUMERIC),
-        ("cat", Pipeline([
-            ("impute", SimpleImputer(strategy="most_frequent")),
-            ("onehot", OneHotEncoder(handle_unknown="ignore")),
-        ]), CATEGORICAL),
-    ])
-
-    model = Pipeline([
-        ("preprocess", preprocess),
-        ("clf", RandomForestClassifier(
-            n_estimators=300, max_depth=6, min_samples_leaf=5,
-            random_state=42, class_weight="balanced",
-        )),
-    ])
-
-    model.fit(X_train, y_train)
+    model, X_test, y_test = train(pd.read_csv(DATA_PATH))
 
     preds = model.predict(X_test)
     acc = accuracy_score(y_test, preds)
@@ -76,7 +49,7 @@ def main():
     print(f"Model saved to {MODEL_PATH}")
 
     # Save accuracy so the app can display it
-    with open(os.path.join(BASE_DIR, "model", "accuracy.txt"), "w") as f:
+    with open(ACCURACY_PATH, "w") as f:
         f.write(f"{acc:.4f}")
 
 

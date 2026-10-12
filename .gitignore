@@ -3,5 +3,6 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 venv/
+.pytest_cache/
 .DS_Store
 .vscode/

@@ -1,0 +1,117 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1. CI: check the code style and run the automated tests
+  # ---------------------------------------------------------------
+  test:
+    name: Lint and test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint with flake8
+        run: flake8 .
+
+      - name: Run tests
+        run: pytest -v
+
+  # ---------------------------------------------------------------
+  # 2. Build the Docker image, smoke test it, and publish it
+  #    (publishing only happens on pushes to main, not on pull requests)
+  # ---------------------------------------------------------------
+  docker:
+    name: Build, smoke test and publish Docker image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (for testing)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: loan-app:ci
+          build-args: APP_VERSION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test 1 - the model loads and predicts inside the image
+        run: |
+          docker run --rm loan-app:ci python -c "
+          import loan_model
+          m = loan_model.load_model()
+          row = {'ApplicantIncome': 5000, 'CoapplicantIncome': 0, 'LoanAmount': 130,
+                 'Loan_Amount_Term': 360, 'Credit_History': 1.0, 'Gender': 'Male',
+                 'Married': 'Yes', 'Dependents': '0', 'Education': 'Graduate',
+                 'Self_Employed': 'No', 'Property_Area': 'Urban'}
+          p = m.predict_proba(loan_model.make_input_frame(row))[0][1]
+          assert 0 <= p <= 1
+          print('model OK, probability =', round(p, 3))
+          "
+
+      - name: Smoke test 2 - the web app starts and is healthy
+        run: |
+          docker run -d --name app -p 8501:8501 loan-app:ci
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8501/_stcore/health; then
+              echo; echo "App is healthy"; exit 0
+            fi
+            sleep 2
+          done
+          echo "App did not become healthy"; docker logs app; exit 1
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        if: github.event_name != 'pull_request'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Publish image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: APP_VERSION=${{ github.sha }}
+          cache-from: type=gha

@@ -1,0 +1,11 @@
+services:
+  loan-app:
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    image: loan-approval-prediction:local
+    container_name: loan-app
+    ports:
+      - "8501:8501"
+    restart: unless-stopped

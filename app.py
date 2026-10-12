@@ -3,27 +3,25 @@ Loan Approval Prediction - Streamlit app
 Run:  streamlit run app.py
 """
 import os
-import pickle
 
-import pandas as pd
 import streamlit as st
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "loan_model.sav")
-ACC_PATH = os.path.join(BASE_DIR, "model", "accuracy.txt")
+from loan_model import ACCURACY_PATH, MODEL_PATH, load_model, make_input_frame
+
+# Set by the Docker build (git commit id). Shows "dev" when running locally.
+APP_VERSION = os.getenv("APP_VERSION", "dev")[:7]
 
 st.set_page_config(page_title="Loan Approval Prediction", page_icon="🏦", layout="centered")
 
 
 @st.cache_resource
-def load_model():
-    with open(MODEL_PATH, "rb") as f:
-        return pickle.load(f)
+def get_model():
+    return load_model()
 
 
 def load_accuracy():
-    if os.path.exists(ACC_PATH):
-        with open(ACC_PATH) as f:
+    if os.path.exists(ACCURACY_PATH):
+        with open(ACCURACY_PATH) as f:
             return float(f.read())
     return None
 
@@ -36,7 +34,7 @@ def main():
         st.error("Model file not found. Run `python train_model.py` first.")
         st.stop()
 
-    model = load_model()
+    model = get_model()
     acc = load_accuracy()
     if acc is not None:
         st.sidebar.metric("Model test accuracy", f"{acc * 100:.1f}%")
@@ -44,6 +42,7 @@ def main():
         "Model: Random Forest\n\nDataset: Loan Prediction (Kaggle)\n\n"
         "Enter the applicant details and click Predict."
     )
+    st.sidebar.caption(f"App version: {APP_VERSION}")
 
     st.subheader("Applicant details")
 
@@ -56,10 +55,14 @@ def main():
         self_employed = st.selectbox("Self employed", ["No", "Yes"])
         property_area = st.selectbox("Property area", ["Urban", "Semiurban", "Rural"])
     with col2:
-        applicant_income = st.number_input("Applicant income (monthly)", min_value=0, value=5000, step=500)
-        coapplicant_income = st.number_input("Co-applicant income (monthly)", min_value=0, value=0, step=500)
-        loan_amount = st.number_input("Loan amount (in thousands)", min_value=1, value=130, step=10)
-        loan_term = st.selectbox("Loan term (months)", [360, 180, 480, 300, 240, 120, 84, 60, 36, 12], index=0)
+        applicant_income = st.number_input(
+            "Applicant income (monthly)", min_value=0, value=5000, step=500)
+        coapplicant_income = st.number_input(
+            "Co-applicant income (monthly)", min_value=0, value=0, step=500)
+        loan_amount = st.number_input(
+            "Loan amount (in thousands)", min_value=1, value=130, step=10)
+        loan_term = st.selectbox(
+            "Loan term (months)", [360, 180, 480, 300, 240, 120, 84, 60, 36, 12], index=0)
         credit_history = st.selectbox(
             "Credit history",
             [1.0, 0.0],
@@ -67,7 +70,7 @@ def main():
         )
 
     if st.button("Predict", type="primary"):
-        input_df = pd.DataFrame([{
+        input_df = make_input_frame({
             "ApplicantIncome": applicant_income,
             "CoapplicantIncome": coapplicant_income,
             "LoanAmount": loan_amount,
@@ -79,7 +82,7 @@ def main():
             "Education": education,
             "Self_Employed": self_employed,
             "Property_Area": property_area,
-        }])
+        })
 
         try:
             prediction = model.predict(input_df)[0]

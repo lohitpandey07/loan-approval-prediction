@@ -1,4 +1,6 @@
-streamlit
-pandas
-numpy
-scikit-learn
+streamlit>=1.35,<2
+pandas>=2.0
+numpy>=1.26
+# IMPORTANT: use the SAME scikit-learn version you trained the model with.
+# Check yours with:  pip show scikit-learn   and change the number below.
+scikit-learn==1.7.2

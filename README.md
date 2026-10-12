@@ -6,7 +6,7 @@ automated tests, Docker, and a CI/CD pipeline built with GitHub Actions.
 
 > ⚠️ For educational purposes only. Not real financial advice.
 
-**Live demo:** _add your Streamlit Cloud link here_
+**Live demo:** loan-approval-prediction-9krvqxvcsgt5hpaqw4kcbn.streamlit.app
 
 ## What the DevOps part does
 

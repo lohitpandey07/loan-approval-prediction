@@ -5,15 +5,17 @@ application is likely to be approved, based on applicant details.
 
 > ⚠️ For educational purposes only. Not real financial advice.
 
-**Live demo:** _add your Streamlit Cloud link here_
+**Live demo:** loan-approval-prediction-9krvqxvcsgt5hpaqw4kcbn.streamlit.app
 
 ## Features
+
 - Random Forest model with a full scikit-learn pipeline (missing-value handling and encoding are built in)
 - Clean form with dropdowns and number inputs
 - Shows the approval probability, not just a yes/no
 - Displays model accuracy in the sidebar
 
 ## Project structure
+
 ```
 loan-approval-prediction/
 ├── app.py                   # Streamlit web app
@@ -28,6 +30,7 @@ loan-approval-prediction/
 ```
 
 ## Dataset
+
 Download the **Loan Prediction** dataset from Kaggle (search "Loan Prediction Problem Dataset"
 and use `train.csv`). Save it as `data/loan_data.csv`.
 
@@ -39,6 +42,7 @@ No dataset handy? Run `python generate_sample_data.py` to create synthetic data 
 test that the project works. Results from synthetic data are not meaningful.
 
 ## Run locally
+
 ```bash
 # 1. Install dependencies
 pip install -r requirements.txt
@@ -50,12 +54,8 @@ python train_model.py
 streamlit run app.py
 ```
 
-## Deploy on Streamlit Community Cloud
-1. Run `train_model.py` locally so `model/loan_model.sav` exists.
-2. Push everything to GitHub, **including `model/loan_model.sav`**.
-3. Go to https://share.streamlit.io, sign in with GitHub, pick this repo and `app.py`, and click Deploy.
-
 ## How it works
+
 1. `train_model.py` loads the CSV, splits it 80/20, and trains a pipeline
    (median/mode imputation, one-hot encoding, Random Forest).
 2. The whole pipeline is saved with `pickle` as a `.sav` file.
@@ -63,12 +63,15 @@ streamlit run app.py
    `predict()` and `predict_proba()`.
 
 ## Tech stack
+
 Python, pandas, NumPy, scikit-learn, Streamlit
 
 ## Possible improvements
+
 - Compare more models (XGBoost, Logistic Regression) and pick the best
 - Add feature importance charts
 - Add input validation rules (for example income vs loan amount)
 
 ## License
+
 MIT
